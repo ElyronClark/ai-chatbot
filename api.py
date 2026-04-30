@@ -25,7 +25,7 @@ class Message(BaseModel):
 @app.post("/chat")
 async def chat(body: Message):
     messages = [
-        {"role": "system", "content": "You are a helpful assistant for TechFlow, a project management SaaS."}
+        {"role": "system", "content": "You are a helpful assistant for TechFlow. Respond in plain text only, no markdown formatting."}
     ] + body.conversation + [
         {"role": "user", "content": body.message}
     ]
