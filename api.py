@@ -24,19 +24,25 @@ class Message(BaseModel):
 
 @app.post("/chat")
 async def chat(body: Message):
+    # Keep only last 10 messages to manage token costs
+    recent_conversation = body.conversation[-10:] if len(body.conversation) > 10 else body.conversation
+
     messages = [
-        {"role": "system", "content": "You are a helpful assistant for TechFlow. Respond in plain text only, no markdown formatting."}
-    ] + body.conversation + [
+        {"role": "system", "content": "Your name is Maggie. You are a friendly but professional assistant for TechFlow, a project management SaaS. Respond in plain text only, no markdown formatting. Be concise and direct — no unnecessary filler. If you don't know the answer, say so honestly and suggest the user contact TechFlow support directly."}
+    ] + recent_conversation + [
         {"role": "user", "content": body.message}
     ]
     
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=messages
+        messages=messages,
+        temperature=0.3
     )
-    
+
     reply = response.choices[0].message.content
-    return {"reply": reply}
+    tokens_used = response.usage.total_tokens
+    print(f"Tokens used: {tokens_used}")
+    return {"reply": reply, "tokens_used": tokens_used}
 
 @app.get("/")
 async def root():
