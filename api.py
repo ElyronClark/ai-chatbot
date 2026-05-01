@@ -1,17 +1,38 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from pydantic import BaseModel
 from openai import OpenAI
+from typing import List, Dict, Any
 import os
+import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY not set in environment")
+ALGORITHM = "HS256"
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="http://localhost:8001/token")
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+        if email is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return email
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],  # your React port
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
 )
@@ -20,10 +41,10 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 class Message(BaseModel):
     message: str
-    conversation: list = []
+    conversation: List[Dict[str, Any]] = []
 
 @app.post("/chat")
-async def chat(body: Message):
+async def chat(body: Message, current_user: str = Depends(get_current_user)):
     # Keep only last 10 messages to manage token costs
     recent_conversation = body.conversation[-10:] if len(body.conversation) > 10 else body.conversation
 
