@@ -6,9 +6,8 @@ Features a React frontend, microservices architecture, and persistent conversati
 ## Features
 - JWT authentication — register, login, protected routes
 - Google OAuth login
-- Streaming chat responses
-- Conversation memory with 10 message limit for token efficiency
-- Persistent conversation history in PostgreSQL
+- Conversation memory — last 10 messages loaded from PostgreSQL per user
+- Persistent conversation history in PostgreSQL — survives refresh and logout
 - Microservices architecture — auth service and chat service on separate ports
 - Token usage tracking
 - Tuned system prompt — Maggie, TechFlow support persona
@@ -24,6 +23,7 @@ Both services share a SECRET_KEY to sign and verify JWTs.
 ## Setup
 
 ### 1. Clone and install
+
     git clone https://github.com/yourusername/ai-chatbot
     cd ai-chatbot
     python3 -m venv venv
@@ -33,31 +33,47 @@ Both services share a SECRET_KEY to sign and verify JWTs.
 ### 2. Environment variables
 
 Auth service .env:
+
     DATABASE_URL=postgresql://user:password@localhost/dbname
     SECRET_KEY=your_secret_key
     GOOGLE_CLIENT_ID=your_google_client_id
     GOOGLE_CLIENT_SECRET=your_google_client_secret
 
 Chat service .env:
+
     OPENAI_API_KEY=your_openai_key
     SECRET_KEY=your_exact_same_secret_key
+    DATABASE_URL=postgresql://user:password@localhost/dbname
 
-### 3. Run both services
+Note: Both services connect to the same database. SECRET_KEY must be identical in both.
+
+### 3. Start PostgreSQL
+
+    sudo service postgresql start
+
+### 4. Run both services
 
 Terminal 1 — auth service:
-    uvicorn auth:app --reload --port 8001
+
+    uvicorn main:app --reload --port 8001
 
 Terminal 2 — chat service:
+
     uvicorn api:app --reload --port 8000
 
-### 4. API docs
+### 5. API docs
 - Auth: http://localhost:8001/docs
 - Chat: http://localhost:8000/docs
+
+## Endpoints
+
+- POST /chat — send a message, returns AI reply and saves to DB
+- GET /history — load full conversation history for current user
 
 ## Stack
 - Python 3 / FastAPI / Uvicorn
 - OpenAI API (GPT-4o-mini)
-- PostgreSQL + SQLAlchemy
+- PostgreSQL + SQLAlchemy + psycopg2
 - JWT (python-jose) + bcrypt (passlib)
 - Google OAuth (authlib)
 - React 18 (frontend)
